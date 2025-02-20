@@ -42,7 +42,13 @@ The agent will:
 
 ## Bookmaking Agent
 
-The Bookmaking Agent converts syllabus PDFs into structured educational books using AI-generated content.
+The Bookmaking Agent converts syllabus PDFs into structured educational books using AI-generated content. Two versions are available:
+
+### Gemini Version
+Uses Google's Gemini model through the official API. Requires a Google API key.
+
+### OpenRouter Version
+Uses Qwen-VL-Plus model through OpenRouter API. Requires an OpenRouter API key.
 
 ### Features
 - PDF syllabus parsing
@@ -54,10 +60,24 @@ The Bookmaking Agent converts syllabus PDFs into structured educational books us
 ### Running the Bookmaking Agent
 1. Place your syllabus PDF in the same directory
 2. Update the PDF filename in the script
-3. Run:
+3. Choose which version to run:
    ```bash
+   # For Gemini version
    python bookmaking_agent.py
+
+   # For OpenRouter version
+   python bookmaking_open_router_agent.py
    ```
+
+### Environment Setup
+Create a `.env` file with the appropriate API key:
+```bash
+# For Gemini version
+GOOGLE_API_KEY=your_api_key_here
+
+# For OpenRouter version
+OPENROUTER_API_KEY=your_api_key_here
+```
 
 ### Output
 - Generates a professionally formatted Word document
@@ -68,7 +88,10 @@ The Bookmaking Agent converts syllabus PDFs into structured educational books us
 - Consistent styling
 
 ### Note
-Both agents require a Google API key with access to the Gemini model. Make sure to handle your API key securely and never commit it to version control.
+The Gemini version requires a Google API key, while the OpenRouter version requires an OpenRouter API key. Make sure to:
+- Handle your API keys securely
+- Never commit them to version control
+- Choose the version that best fits your needs and API access
 
 Remember to always activate the virtual environment before running the agents:
 ```bash
