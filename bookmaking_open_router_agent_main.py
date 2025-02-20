@@ -169,7 +169,11 @@ def setup_document_styles(doc):
 def create_chapter_heading(doc, chapter_text):
     """Create properly formatted chapter heading"""
     chapter_para = doc.add_paragraph(style='Chapter')
-    chapter_para.add_run(f"Chapter {chapter_text}")
+    # Remove extra "Chapter" if it's already in the text
+    if chapter_text.lower().startswith('chapter'):
+        chapter_para.add_run(chapter_text)
+    else:
+        chapter_para.add_run(f"Chapter {chapter_text}")
     return chapter_para
 
 async def get_chapter_intro(chapter, syllabus_context):

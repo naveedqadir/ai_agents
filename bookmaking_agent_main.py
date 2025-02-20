@@ -155,7 +155,11 @@ def setup_document_styles(doc):
 def create_chapter_heading(doc, chapter_text):
     """Create properly formatted chapter heading"""
     chapter_para = doc.add_paragraph(style='Chapter')
-    chapter_para.add_run(f"Chapter {chapter_text}")
+    # Remove extra "Chapter" if it's already in the text
+    if chapter_text.lower().startswith('chapter'):
+        chapter_para.add_run(chapter_text)
+    else:
+        chapter_para.add_run(f"Chapter {chapter_text}")
     return chapter_para
 
 async def get_chapter_intro(chapter, syllabus_context):
@@ -327,14 +331,6 @@ def parse_content_sections(content):
             
         # Handle review questions header
         if line.startswith('Review Questions'):
-            current_section = {'type': 'review_header', 'content': line}
-            sections.append(current_section)
-            continue
-            
-        # Handle topic headers in review questions
-        if line.startswith('Topic:'):
-            current_topic = {'type': 'review_topic', 'content': line.replace('Topic:', '').strip()}
-            sections.append(current_topic)
             continue
             
         # Handle numbered questions
