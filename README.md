@@ -31,7 +31,7 @@ The Browser Agent is designed to automate web browsing tasks using LangChain and
 
 ### Running the Browser Agent
 ```bash
-python browser_agent.py
+python browser_agent_main.py
 ```
 
 The agent will:
@@ -66,7 +66,7 @@ Uses Qwen-VL-Plus model through OpenRouter API. Requires an OpenRouter API key.
    python bookmaking_agent.py
 
    # For OpenRouter version
-   python bookmaking_open_router_agent.py
+   python bookmaking_open_router_agent_main.py
    ```
 
 ### Environment Setup
@@ -92,6 +92,8 @@ The Gemini version requires a Google API key, while the OpenRouter version requi
 - Handle your API keys securely
 - Never commit them to version control
 - Choose the version that best fits your needs and API access
+
+Files ending with `_main` (e.g., `browser_agent_main.py`, `bookmaking_open_router_agent_main.py`) are the stable production versions. Use these for reliable operation.
 
 Remember to always activate the virtual environment before running the agents:
 ```bash
