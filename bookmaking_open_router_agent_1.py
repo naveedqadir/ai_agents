@@ -67,52 +67,36 @@ async def api_request(prompt: str, max_retries: int = Config.MAX_RETRIES) -> str
 async def ai_parse_syllabus(syllabus_text: str) -> Dict[str, List[str]]:
     """Parse syllabus into chapters and topics using AI."""
     prompt = f"""
-    Parse the following syllabus text into a structured format with chapters and their topics. The syllabus may have varying formats (e.g., 'Chapter 1: Title', 'Unit I - Title', numbered sections, bullet points, etc.), so adapt to its structure intelligently.
+    Parse the following syllabus text into a structured format with chapters and their topics. Adapt to varying formats (e.g., 'Chapter 1: Title', 'Unit I - Title', numbered sections, bullet points).
 
     Syllabus Text:
     {syllabus_text}
 
     Format Requirements:
-    - Return ONLY valid JSON in this exact structure:
+    - Return ONLY valid JSON:
       {{
         "Chapter 1: [Title]": ["Topic 1", "Topic 2", ...],
         "Chapter 2: [Title]": ["Topic 1", "Topic 2", ...],
         ...
       }}
-    - Use "Chapter [Number]: [Title]" as keys (e.g., "Chapter 1: Introduction")
+    - Use "Chapter [Number]: [Title]" as keys
     - List topics as plain strings without numbering or bullets
 
     Content Rules:
-    - Identify chapter/section/unit headings (e.g., 'Chapter 1', 'Unit II', 'Section A') and their titles
-    - Extract associated topics/subtopics beneath each heading
-    - Ignore preamble, learning objectives, or metadata (e.g., 'Course Code', 'Hours: 40')
-    - Remove bullet points, numbers, or formatting markers from topics
-    - Handle inconsistent formatting (e.g., tabs, extra spaces, mixed numbering)
+    - Identify chapter/section/unit headings and their titles
+    - Extract associated topics/subtopics
+    - Ignore preamble, objectives, or metadata
+    - Remove bullet points, numbers, or formatting markers
+    - Handle inconsistent formatting
     - Skip empty or irrelevant lines
-    - Ensure each chapter has at least one topic; skip chapters without topics
-
-    Example Input:
-    Chapter 1: Basics of Electronics
-    - Introduction to circuits
-    - Components
-    Unit II - Advanced Topics
-    1. Signal Processing
-    2. Amplifiers
-
-    Example Output:
-    {{
-      "Chapter 1: Basics of Electronics": ["Introduction to circuits", "Components"],
-      "Chapter 2: Advanced Topics": ["Signal Processing", "Amplifiers"]
-    }}
+    - Ensure each chapter has at least one topic
     """
     try:
         response = await api_request(prompt)
-        # Extract JSON from response (in case extra text is included)
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if not json_match:
             raise ValueError("No valid JSON found in AI response")
         syllabus = json.loads(json_match.group(0))
-        # Validate and clean
         return {k: v for k, v in syllabus.items() if isinstance(v, list) and v}
     except Exception as e:
         logger.error(f"AI parsing failed: {e}")
@@ -150,8 +134,8 @@ def setup_document_styles(doc: Document) -> None:
         if 'page_break' in config:
             style.paragraph_format.page_break_before = True
 
-async def get_chapter_intro(chapter: str, syllabus_context: str) -> str:
-    """Generate a book-style chapter introduction."""
+async def get_chapter_intro(chapter: str, syllabus_context: str, doc: Document, output_filename: str) -> str:
+    """Generate and save chapter introduction."""
     prompt = f"""
     Generate a polished introduction for '{chapter}' for a professional book.
 
@@ -168,10 +152,14 @@ async def get_chapter_intro(chapter: str, syllabus_context: str) -> str:
     - Avoid repeating chapter title
     - No lists or bullet points
     """
-    return await api_request(prompt)
+    content = await api_request(prompt)
+    add_formatted_content(doc, content)
+    doc.save(output_filename)  # Save after adding intro
+    logger.info(f"Saved progress after chapter intro: {chapter}")
+    return content
 
-async def get_topic_content(chapter: str, topic: str, syllabus_context: str) -> str:
-    """Generate detailed topic content for book formatting."""
+async def get_topic_content(chapter: str, topic: str, syllabus_context: str, doc: Document, output_filename: str) -> str:
+    """Generate and save topic content."""
     prompt = f"""
     Generate educational content for '{topic}' in '{chapter}' for a professional book.
 
@@ -191,10 +179,14 @@ async def get_topic_content(chapter: str, topic: str, syllabus_context: str) -> 
     - Practical examples
     - No lists or introductory remarks beyond note
     """
-    return await api_request(prompt)
+    content = await api_request(prompt)
+    add_formatted_content(doc, content)
+    doc.save(output_filename)  # Save after adding topic content
+    logger.info(f"Saved progress after topic content: {topic}")
+    return content
 
-async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: str) -> str:
-    """Generate review questions for the chapter."""
+async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: str, doc: Document, output_filename: str) -> str:
+    """Generate and save chapter review questions."""
     topics_list = "\n".join(topics)
     prompt = f"""
     Generate review questions for '{chapter}' for a professional book.
@@ -215,7 +207,11 @@ async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: 
     - Per topic: 1 conceptual, 1 practical, 1 problem-solving question
     - Number consecutively across topics
     """
-    return await api_request(prompt)
+    content = await api_request(prompt)
+    add_formatted_content(doc, content)
+    doc.save(output_filename)  # Save after adding review questions
+    logger.info(f"Saved progress after chapter review: {chapter}")
+    return content
 
 def add_formatted_content(doc: Document, content: str) -> None:
     """Add content to document with book-appropriate formatting."""
@@ -235,7 +231,7 @@ def add_formatted_content(doc: Document, content: str) -> None:
             doc.add_paragraph(line, style='Content')
 
 async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book.docx") -> None:
-    """Generate a properly formatted book from a syllabus PDF using AI parsing."""
+    """Generate a properly formatted book with real-time saving."""
     try:
         # Initialization
         syllabus_text = extract_syllabus_from_pdf(pdf_path)
@@ -257,30 +253,30 @@ async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book
                 para = doc.add_paragraph(topic, style='TOCEntry')
                 para.paragraph_format.left_indent = Inches(0.75)
         doc.add_page_break()
+        doc.save(output_filename)  # Initial save after setup
+        logger.info("Saved initial document structure")
 
         # Chapters
         for chapter, topics in tqdm(syllabus.items(), desc="Chapters"):
             doc.add_paragraph(chapter, style='Chapter')
             
-            intro = await get_chapter_intro(chapter, syllabus_text)
-            add_formatted_content(doc, intro)
+            await get_chapter_intro(chapter, syllabus_text, doc, output_filename)
             
             for topic in tqdm(topics, desc=f"Topics", leave=False):
                 if not topic.strip():
                     continue
                 doc.add_paragraph(topic, style='Topic')
-                content = await get_topic_content(chapter, topic, syllabus_text)
-                add_formatted_content(doc, content)
+                await get_topic_content(chapter, topic, syllabus_text, doc, output_filename)
             
-            review = await get_chapter_review(chapter, topics, syllabus_text)
-            add_formatted_content(doc, review)
+            await get_chapter_review(chapter, topics, syllabus_text, doc, output_filename)
             doc.add_page_break()
 
-        doc.save(output_filename)
-        logger.info(f"Book generated: {output_filename}")
+        doc.save(output_filename)  # Final save for good measure
+        logger.info(f"Book fully generated: {output_filename}")
 
     except Exception as e:
         logger.error(f"Book generation failed: {e}")
+        doc.save(output_filename)  # Save on error to preserve progress
         raise
 
 if __name__ == "__main__":
