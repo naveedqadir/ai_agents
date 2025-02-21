@@ -284,5 +284,5 @@ async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book
         raise
 
 if __name__ == "__main__":
-    pdf_path = "Electronics-Syllabus.pdf"
+    pdf_path = "Electronics-Sylabuss.pdf"
     asyncio.run(process_syllabus(pdf_path))
