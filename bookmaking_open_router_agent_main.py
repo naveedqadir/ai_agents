@@ -216,6 +216,8 @@ async def get_topic_content(chapter, topic, syllabus_context):
 
     1.3 [Third Aspect of {topic}]
     [Detailed explanation in paragraph form]
+    
+    and so on for all aspects of the topic...
 
     Requirements:
     1. No topic title repetition
@@ -249,6 +251,8 @@ async def get_chapter_review(chapter, topics, syllabus_context):
     4. [Conceptual question about the topic]
     5. [Practical application question]
     6. [Problem-solving scenario question]
+
+    and so on for all topics in this chapter...
 
     Requirements:
     1. Number questions sequentially across all topics
