@@ -135,14 +135,14 @@ def setup_document_styles(doc: Document) -> None:
             style.paragraph_format.page_break_before = True
 
 async def get_chapter_intro(chapter: str, syllabus_context: str, doc: Document, output_filename: str) -> str:
-    """Generate and save chapter introduction."""
+    """Generate and save chapter introduction with clean formatting."""
     prompt = f"""
     Generate a polished introduction for '{chapter}' for a professional book.
 
     Context: {syllabus_context}
 
     Format:
-    - Plain text, no markdown or special characters
+    - Plain text, no markdown, hashtags, numbering, or special characters
     - Single paragraph, 150-200 words, styled as 'Content' (11pt, justified, 0.25in indent)
 
     Content:
@@ -150,27 +150,28 @@ async def get_chapter_intro(chapter: str, syllabus_context: str, doc: Document, 
     - Overview of chapter topics
     - Emphasize practical relevance and foundational importance
     - Avoid repeating chapter title
-    - No lists or bullet points
+    - No lists, bullet points, or subsection headers
     """
     content = await api_request(prompt)
-    add_formatted_content(doc, content)
-    doc.save(output_filename)  # Save after adding intro
+    cleaned_content = re.sub(r'[#*\-]+\s*', '', content)  # Remove any residual markers
+    add_formatted_content(doc, cleaned_content)
+    doc.save(output_filename)
     logger.info(f"Saved progress after chapter intro: {chapter}")
-    return content
+    return cleaned_content
 
 async def get_topic_content(chapter: str, topic: str, syllabus_context: str, doc: Document, output_filename: str) -> str:
-    """Generate and save topic content."""
+    """Generate and save topic content with clean formatting."""
     prompt = f"""
     Generate educational content for '{topic}' in '{chapter}' for a professional book.
 
     Context: {syllabus_context}
 
     Format:
-    - Plain text, no markdown or special characters
+    - Plain text, no markdown, hashtags, numbering, or special characters
     - Structure:
       - 'Note: [One-sentence overview]' (for 'Subsection' style: 14pt, bold, italic)
       - 3 subsections, each with:
-        - '[#.# Brief Title]' (for 'Subsection' style: 14pt, bold, italic)
+        - '[Brief Title]' (no numbers like '1.1', for 'Subsection' style: 14pt, bold, italic)
         - Paragraph (100-150 words, for 'Content' style: 11pt, justified, 0.25in indent)
 
     Content:
@@ -180,13 +181,14 @@ async def get_topic_content(chapter: str, topic: str, syllabus_context: str, doc
     - No lists or introductory remarks beyond note
     """
     content = await api_request(prompt)
-    add_formatted_content(doc, content)
-    doc.save(output_filename)  # Save after adding topic content
+    cleaned_content = re.sub(r'[#*\-]+\s*|\[\d+\.\d+\s*', '[', content)  # Remove markers and numbers before titles
+    add_formatted_content(doc, cleaned_content)
+    doc.save(output_filename)
     logger.info(f"Saved progress after topic content: {topic}")
-    return content
+    return cleaned_content
 
 async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: str, doc: Document, output_filename: str) -> str:
-    """Generate and save chapter review questions."""
+    """Generate and save chapter review questions with clean formatting."""
     topics_list = "\n".join(topics)
     prompt = f"""
     Generate review questions for '{chapter}' for a professional book.
@@ -195,12 +197,12 @@ async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: 
     {topics_list}
 
     Format:
-    - Plain text, no markdown or special characters
+    - Plain text, no markdown, hashtags, or special characters except question numbers
     - Structure:
       - 'Review Questions' (for 'Topic' style: 16pt, bold)
       - For each topic:
         - 'Topic: [Name]' (for 'Subsection' style: 14pt, bold, italic)
-        - 3 numbered questions (e.g., '1. Text') (for 'Content' style: 11pt, 0.25in indent)
+        - 3 numbered questions (e.g., '1. Text', for 'Content' style: 11pt, 0.25in indent)
 
     Content:
     - Academic tone
@@ -208,10 +210,11 @@ async def get_chapter_review(chapter: str, topics: List[str], syllabus_context: 
     - Number consecutively across topics
     """
     content = await api_request(prompt)
-    add_formatted_content(doc, content)
-    doc.save(output_filename)  # Save after adding review questions
+    cleaned_content = re.sub(r'[#*\-]+\s*', '', content)  # Remove unwanted markers, keep question numbers
+    add_formatted_content(doc, cleaned_content)
+    doc.save(output_filename)
     logger.info(f"Saved progress after chapter review: {chapter}")
-    return content
+    return cleaned_content
 
 def add_formatted_content(doc: Document, content: str) -> None:
     """Add content to document with book-appropriate formatting."""
@@ -221,7 +224,7 @@ def add_formatted_content(doc: Document, content: str) -> None:
             continue
         if line.startswith('Review Questions'):
             doc.add_paragraph(line, style='Topic')
-        elif line.startswith('Topic:') or line.startswith('Note:') or re.match(r'^\d+\.\d+\s', line):
+        elif line.startswith('Topic:') or line.startswith('Note:') or (not re.match(r'^\d+\.\s', line) and ':' not in line and len(line.split()) <= 5):
             doc.add_paragraph(line, style='Subsection')
         elif re.match(r'^\d+\.\s', line):
             para = doc.add_paragraph(line, style='Content')
@@ -231,7 +234,7 @@ def add_formatted_content(doc: Document, content: str) -> None:
             doc.add_paragraph(line, style='Content')
 
 async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book.docx") -> None:
-    """Generate a properly formatted book with real-time saving."""
+    """Generate a properly formatted book with real-time saving and clean formatting."""
     try:
         # Initialization
         syllabus_text = extract_syllabus_from_pdf(pdf_path)
@@ -253,7 +256,7 @@ async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book
                 para = doc.add_paragraph(topic, style='TOCEntry')
                 para.paragraph_format.left_indent = Inches(0.75)
         doc.add_page_break()
-        doc.save(output_filename)  # Initial save after setup
+        doc.save(output_filename)
         logger.info("Saved initial document structure")
 
         # Chapters
@@ -271,12 +274,12 @@ async def process_syllabus(pdf_path: str, output_filename: str = "Generated_Book
             await get_chapter_review(chapter, topics, syllabus_text, doc, output_filename)
             doc.add_page_break()
 
-        doc.save(output_filename)  # Final save for good measure
+        doc.save(output_filename)
         logger.info(f"Book fully generated: {output_filename}")
 
     except Exception as e:
         logger.error(f"Book generation failed: {e}")
-        doc.save(output_filename)  # Save on error to preserve progress
+        doc.save(output_filename)
         raise
 
 if __name__ == "__main__":
